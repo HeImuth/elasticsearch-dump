@@ -20,6 +20,7 @@ import java.util.Scanner;
 
 @Command(group = "index", description = "Index operations")
 public class IndexCommand {
+    private ObjectMapper objectMapper = new ObjectMapper();
     private final IndexService<Document> indexService;
 
     public IndexCommand(IndexService<Document> indexService) {
@@ -111,16 +112,21 @@ public class IndexCommand {
 
     @Command(command = "scroll", description = "Scroll through documents in an index", group = "index")
     public void scroll(String indexName, @Option(defaultValue = "100") int size, @Option(defaultValue = "10m") String timeout,
-                       @Option String output) throws IOException {
+                       @Option List<String> includeFields, @Option List<String> excludeFields,
+                       @Option String output, @Option(defaultValue = "false") Boolean outputHeader) throws IOException {
         CSVWriter writer = null;
         ScrollResponse<Document> scroll = null;
-
+        String outputFormat = ".csv";
         try {
             if (output != null && !output.isEmpty()) {
                 writer = new CSVWriter(new FileWriter(output));
+                outputFormat = output.substring(output.lastIndexOf("."));
             }
-            SearchResponse<Document> initScroll = indexService.scrollSearch(indexName, size, timeout);
+            SearchResponse<Document> initScroll = indexService.scrollSearch(indexName, size, timeout, includeFields, excludeFields);
             List<Hit<Document>> searchHits = initScroll.hits().hits();
+            if (outputHeader) {
+                printHeader(writer, searchHits);
+            }
             processHits(writer, searchHits);
 
             scroll = indexService.scroll(initScroll.scrollId(), timeout);
@@ -144,6 +150,18 @@ public class IndexCommand {
         }
     }
 
+    private void printHeader(CSVWriter writer, List<Hit<Document>> searchHits) {
+        if (searchHits.isEmpty() || searchHits.getFirst() == null || searchHits.getFirst().source() == null) {
+            return;
+        }
+        if (writer != null) {
+            String[] headers = searchHits.getFirst().source().keySet().toArray(new String[0]);
+            writer.writeNext(headers);
+        } else {
+            System.out.println(searchHits.getFirst().source().keySet());
+        }
+    }
+
     private void processHits(CSVWriter writer, List<Hit<Document>> hits) {
         if (writer != null) {
             writeDocuments(hits, writer);
@@ -160,10 +178,26 @@ public class IndexCommand {
         hits.forEach(hit -> {
             Map<String, Object> source = hit.source();
             if (source != null && !source.isEmpty()) {
-                String[] data = source.values().stream().map(Object::toString).toArray(String[]::new);
+                String[] data = source.values().stream().map(this::printField).toArray(String[]::new);
                 writer.writeNext(data);
             }
         });
+    }
+
+    private String printField(Object field) {
+        if (field == null) {
+            return "";
+        }
+
+        if (field instanceof String) {
+            return field.toString();
+        } else {
+            try {
+                return objectMapper.writeValueAsString(field);
+            } catch (IOException e) {
+                return String.valueOf(field);
+            }
+        }
     }
 
 

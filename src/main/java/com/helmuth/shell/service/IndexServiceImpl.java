@@ -3,6 +3,7 @@ package com.helmuth.shell.service;
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import co.elastic.clients.elasticsearch._types.Time;
 import co.elastic.clients.elasticsearch.core.*;
+import co.elastic.clients.elasticsearch.core.search.SourceFilter;
 import com.helmuth.shell.model.Document;
 import com.helmuth.shell.model.IndexDocument;
 import org.slf4j.Logger;
@@ -76,10 +77,17 @@ public class IndexServiceImpl implements IndexService<Document> {
     }
 
     @Override
-    public SearchResponse<Document> scrollSearch(String indexName, int size, String timeout) throws IOException {
+    public SearchResponse<Document> scrollSearch(String indexName, int size, String timeout, List<String> includeFields, List<String> excludeFields) throws IOException {
         return client.search(req -> req.index(indexName)
                 .size(size)
+                .source(sc -> sc.filter(SourceFilter.of(sf -> sf
+                        .includes(isNullOrEmpty(includeFields) ? Collections.emptyList() : includeFields)
+                        .excludes(isNullOrEmpty(excludeFields) ? Collections.emptyList() : excludeFields))))
                 .scroll(Time.of(t -> t.time(timeout))), Document.class);
+    }
+
+    private boolean isNullOrEmpty(Collection<?> collection) {
+        return collection == null || collection.isEmpty();
     }
 
     @Override
