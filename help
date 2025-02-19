@@ -1,0 +1,6 @@
+help
+search-all --index person
+search-all help
+now hel`p
+now help
+history help

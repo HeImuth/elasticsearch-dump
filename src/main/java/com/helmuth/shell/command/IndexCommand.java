@@ -1,0 +1,170 @@
+package com.helmuth.shell.command;
+
+import co.elastic.clients.elasticsearch.core.ScrollResponse;
+import co.elastic.clients.elasticsearch.core.SearchResponse;
+import co.elastic.clients.elasticsearch.core.search.Hit;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.helmuth.shell.model.Document;
+import com.helmuth.shell.model.GenericDocument;
+import com.helmuth.shell.service.IndexService;
+import com.opencsv.CSVWriter;
+import org.springframework.shell.command.annotation.Command;
+import org.springframework.shell.command.annotation.Option;
+
+import java.io.FileWriter;
+import java.io.IOException;
+import java.util.List;
+import java.util.Map;
+import java.util.Scanner;
+
+@Command(group = "index", description = "Index operations")
+public class IndexCommand {
+    private final IndexService<Document> indexService;
+
+    public IndexCommand(IndexService<Document> indexService) {
+        this.indexService = indexService;
+    }
+
+    @Command(command = "create", description = "Create an index", group = "index")
+    public void createIndex(String indexName) {
+        try {
+            indexService.createIndex(indexName);
+            System.out.println("Index created: " + indexName);
+        } catch (Exception e) {
+            System.err.println("Failed to create index");
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Command(command = "delete", description = "Delete an index", group = "index")
+    public void deleteIndex(String indexName) {
+        Scanner scanner = new Scanner(System.in);
+        System.out.println("Are you sure you want to delete the index " + indexName + "? (yes/no)");
+        String response = scanner.nextLine();
+
+        if (!response.equalsIgnoreCase("yes")) {
+            System.out.println("Index deletion cancelled");
+            return;
+        }
+
+        try {
+            indexService.deleteIndex(indexName);
+            System.out.println("Index deleted: " + indexName);
+        } catch (Exception e) {
+            System.err.println("Failed to delete index");
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Command(command = "count", description = "Count the number of documents in an index", group = "index")
+    public void countDocuments(String indexName) {
+        try {
+            long count = indexService.countDocuments(indexName);
+            System.out.println("Number of documents in index " + indexName + ": " + count);
+        } catch (Exception e) {
+            System.err.println("Failed to count documents");
+            throw new RuntimeException(e);
+        }
+    }
+
+
+    @Command(command = "index-document", description = "Index a document", group = "index")
+    public void indexDocument(@Option() String indexName, @Option() String document) {
+        try {
+            ObjectMapper objectMapper = new ObjectMapper();
+            Map<String, Object> documentMap = objectMapper.readValue(document, new TypeReference<Map<String, Object>>() {
+            });
+            GenericDocument genericDocument = new GenericDocument(documentMap);
+
+            indexService.indexDocument(indexName, genericDocument);
+            System.out.println("Document indexed successfully");
+        } catch (Exception e) {
+            System.err.println("Failed to index document");
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Command(command = "get-document", description = "Get a document by ID", group = "index")
+    public String getDocument(@Option String indexName, @Option String id) {
+        try {
+            Document document = indexService.getDocumentById(indexName, id).orElse(null);
+            if (document == null) {
+                return "Document not found";
+            }
+            return document.toString();
+        } catch (Exception e) {
+            System.err.println("Failed to get document");
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Command(command = "list-documents", description = "List all documents in an index", group = "index")
+    public void listDocuments(String indexName) {
+        try {
+            indexService.getDocuments(indexName).forEach(System.out::println);
+        } catch (Exception e) {
+            System.err.println("Failed to list documents");
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Command(command = "scroll", description = "Scroll through documents in an index", group = "index")
+    public void scroll(String indexName, @Option(defaultValue = "100") int size, @Option(defaultValue = "10m") String timeout,
+                       @Option String output) throws IOException {
+        CSVWriter writer = null;
+        ScrollResponse<Document> scroll = null;
+
+        try {
+            if (output != null && !output.isEmpty()) {
+                writer = new CSVWriter(new FileWriter(output));
+            }
+            SearchResponse<Document> initScroll = indexService.scrollSearch(indexName, size, timeout);
+            List<Hit<Document>> searchHits = initScroll.hits().hits();
+            processHits(writer, searchHits);
+
+            scroll = indexService.scroll(initScroll.scrollId(), timeout);
+            List<Hit<Document>> hits = scroll.hits().hits();
+            while (!hits.isEmpty()) {
+                processHits(writer, hits);
+                scroll = indexService.scroll(scroll.scrollId(), timeout);
+                hits = scroll.hits().hits();
+            }
+
+        } catch (Exception e) {
+            System.err.println("Failed to scroll through documents");
+            throw new RuntimeException(e);
+        } finally {
+            if (scroll != null && scroll.scrollId() != null) {
+                indexService.clearScroll(scroll.scrollId());
+            }
+            if (writer != null) {
+                writer.close();
+            }
+        }
+    }
+
+    private void processHits(CSVWriter writer, List<Hit<Document>> hits) {
+        if (writer != null) {
+            writeDocuments(hits, writer);
+        } else {
+            printInConsole(hits);
+        }
+    }
+
+    private static void printInConsole(List<Hit<Document>> hits) {
+        hits.forEach(hit -> System.out.println(hit.source()));
+    }
+
+    private void writeDocuments(List<Hit<Document>> hits, CSVWriter writer) {
+        hits.forEach(hit -> {
+            Map<String, Object> source = hit.source();
+            if (source != null && !source.isEmpty()) {
+                String[] data = source.values().stream().map(Object::toString).toArray(String[]::new);
+                writer.writeNext(data);
+            }
+        });
+    }
+
+
+}
