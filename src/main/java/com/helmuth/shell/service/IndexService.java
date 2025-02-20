@@ -18,7 +18,7 @@ public interface IndexService<T> {
     void deleteIndex(String indexName) throws IOException;
     long countDocuments(String indexName) throws IOException;
     void indexDocument(T document);
-    void indexDocuments(Collection<T> documents) throws IOException;
+    void indexDocuments(String indexName, Collection<T> documents) throws IOException;
     void indexDocument(String indexName, Map<String, Object> document);
     Optional<Document> getDocumentById(String indexName, String id) throws IOException;
     List<Document> getDocuments(String indexName, int size, int page) throws IOException;

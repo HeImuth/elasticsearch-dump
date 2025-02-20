@@ -79,10 +79,10 @@ public class IndexServiceImpl implements IndexService<Document> {
     }
 
     @Override
-    public void indexDocuments(Collection<Document> documents) throws IOException {
+    public void indexDocuments(String indexName ,Collection<Document> documents) throws IOException {
         BulkRequest.Builder bulkRequest = new BulkRequest.Builder();
         for (Document document : documents) {
-            bulkRequest.operations(op -> op.index(i -> i.index(getIndexName(document)).document(document)));
+            bulkRequest.operations(op -> op.index(i -> i.index(indexName).document(document)));
         }
         client.bulk(bulkRequest.build());
     }
