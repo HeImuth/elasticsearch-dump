@@ -2,8 +2,13 @@ package com.helmuth.shell.service;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import co.elastic.clients.elasticsearch._types.Time;
+import co.elastic.clients.elasticsearch.cat.indices.IndicesRecord;
 import co.elastic.clients.elasticsearch.core.*;
 import co.elastic.clients.elasticsearch.core.search.SourceFilter;
+import co.elastic.clients.elasticsearch.indices.GetIndicesSettingsResponse;
+import co.elastic.clients.elasticsearch.indices.GetMappingResponse;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
 import com.helmuth.shell.model.Document;
 import com.helmuth.shell.model.IndexDocument;
 import org.slf4j.Logger;
@@ -20,6 +25,29 @@ public class IndexServiceImpl implements IndexService<Document> {
 
     public IndexServiceImpl(ElasticsearchClient client) {
         this.client = client;
+    }
+
+    @Override
+    public List<String> listIndices() throws IOException {
+        return client.cat().indices().valueBody().stream().map(IndicesRecord::index).toList();
+    }
+
+    @Override
+    public String getIndexSettings(String indexName) throws IOException {
+        GetIndicesSettingsResponse response = client.indices().getSettings(request -> request.index(indexName));
+        String mappings = Objects.requireNonNull(response.get(indexName)).settings().toString();
+        ObjectMapper objectMapper = new ObjectMapper().enable(SerializationFeature.INDENT_OUTPUT);
+        Object json = objectMapper.readValue(mappings.replaceFirst("^IndexSettings: ", ""), Object.class);
+        return objectMapper.writeValueAsString(json);
+    }
+
+    @Override
+    public String getIndexMapping(String indexName) throws IOException {
+        GetMappingResponse response = client.indices().getMapping(request -> request.index(indexName));
+        String mappings = Objects.requireNonNull(response.get(indexName)).mappings().toString();
+        ObjectMapper objectMapper = new ObjectMapper().enable(SerializationFeature.INDENT_OUTPUT);
+        Object json = objectMapper.readValue(mappings.replaceFirst("^TypeMapping: ", ""), Object.class);
+        return objectMapper.writeValueAsString(json);
     }
 
     @Override
@@ -70,8 +98,9 @@ public class IndexServiceImpl implements IndexService<Document> {
     }
 
     @Override
-    public List<Document> getDocuments(String indexName) throws IOException {
-        SearchResponse<Document> search = client.search(req -> req.index(indexName), Document.class);
+    public List<Document> getDocuments(String indexName, int size, int page) throws IOException {
+        SearchResponse<Document> search = client.search(req -> req.index(indexName).size(size).from(page * size), Document.class);
+        System.out.println("took: " + search.took());
         return search.hits().hits().stream().map(hit -> new Document(hit.id(), hit.source())).toList();
 
     }

@@ -20,14 +20,46 @@ import java.util.Scanner;
 
 @Command(group = "index", description = "Index operations")
 public class IndexCommand {
-    private ObjectMapper objectMapper = new ObjectMapper();
+    private static final ObjectMapper objectMapper = new ObjectMapper();
     private final IndexService<Document> indexService;
 
     public IndexCommand(IndexService<Document> indexService) {
         this.indexService = indexService;
     }
 
-    @Command(command = "create", description = "Create an index", group = "index")
+    @Command(command = "list", description = "List all indexes")
+    public void listIndexes() {
+        try {
+            indexService.listIndices().forEach(System.out::println);
+        } catch (Exception e) {
+            System.err.println("Failed to list indices");
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Command(command = "settings", description = "Get index settings")
+    public void getIndexSettings(String indexName) {
+        try {
+            String settings = indexService.getIndexSettings(indexName);
+            System.out.println(settings);
+        }catch (Exception e) {
+            System.err.println("Failed to get index settings");
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Command(command = "mappings", description = "Get index settings")
+    public void getIndexMappings(String indexName) {
+        try {
+            String mappings = indexService.getIndexMapping(indexName);
+            System.out.println(mappings);
+        }catch (Exception e) {
+            System.err.println("Failed to get index settings");
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Command(command = "create", description = "Create an index")
     public void createIndex(String indexName) {
         try {
             indexService.createIndex(indexName);
@@ -69,46 +101,6 @@ public class IndexCommand {
         }
     }
 
-
-    @Command(command = "index-document", description = "Index a document", group = "index")
-    public void indexDocument(@Option() String indexName, @Option() String document) {
-        try {
-            ObjectMapper objectMapper = new ObjectMapper();
-            Map<String, Object> documentMap = objectMapper.readValue(document, new TypeReference<Map<String, Object>>() {
-            });
-            GenericDocument genericDocument = new GenericDocument(documentMap);
-
-            indexService.indexDocument(indexName, genericDocument);
-            System.out.println("Document indexed successfully");
-        } catch (Exception e) {
-            System.err.println("Failed to index document");
-            throw new RuntimeException(e);
-        }
-    }
-
-    @Command(command = "get-document", description = "Get a document by ID", group = "index")
-    public String getDocument(@Option String indexName, @Option String id) {
-        try {
-            Document document = indexService.getDocumentById(indexName, id).orElse(null);
-            if (document == null) {
-                return "Document not found";
-            }
-            return document.toString();
-        } catch (Exception e) {
-            System.err.println("Failed to get document");
-            throw new RuntimeException(e);
-        }
-    }
-
-    @Command(command = "list-documents", description = "List all documents in an index", group = "index")
-    public void listDocuments(String indexName) {
-        try {
-            indexService.getDocuments(indexName).forEach(System.out::println);
-        } catch (Exception e) {
-            System.err.println("Failed to list documents");
-            throw new RuntimeException(e);
-        }
-    }
 
     @Command(command = "scroll", description = "Scroll through documents in an index", group = "index")
     public void scroll(String indexName, @Option(defaultValue = "100") int size, @Option(defaultValue = "10m") String timeout,
