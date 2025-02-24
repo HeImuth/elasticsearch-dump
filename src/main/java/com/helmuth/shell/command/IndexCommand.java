@@ -108,25 +108,33 @@ public class IndexCommand {
     public void scroll(String indexName, @Option(defaultValue = "100") int size, @Option(defaultValue = "10m") String timeout,
                        @Option List<String> includeFields, @Option List<String> excludeFields,
                        @Option String output, @Option(defaultValue = "false") Boolean outputHeader) throws IOException {
-        CSVWriter writer = null;
+        CSVWriter csvWriter = null;
+        PrintWriter jsonWriter = null;
         ScrollResponse<Document> scroll = null;
         String outputFormat = ".csv";
         try {
             if (output != null && !output.isEmpty()) {
-                writer = new CSVWriter(new FileWriter(output));
-                outputFormat = output.substring(output.lastIndexOf("."));
+                String fileExtension = output.substring(output.lastIndexOf(".")).toLowerCase();
+                if (fileExtension.equals(".json")) {
+                    outputFormat = "json";
+                    jsonWriter = new PrintWriter(new FileWriter(output));
+                    jsonWriter.println("["); // Start JSON array
+                } else {
+                    outputFormat = "csv";
+                    csvWriter = new CSVWriter(new FileWriter(output));
+                }
             }
             SearchResponse<Document> initScroll = indexService.scrollSearch(indexName, size, timeout, includeFields, excludeFields);
             List<Hit<Document>> searchHits = initScroll.hits().hits();
-            if (outputHeader) {
-                printHeader(writer, searchHits);
+            if (outputHeader && outputFormat.equals("csv")) {
+                printHeader(csvWriter, searchHits);
             }
-            processHits(writer, searchHits);
+            processHits(csvWriter, jsonWriter, searchHits);
 
             scroll = indexService.scroll(initScroll.scrollId(), timeout);
             List<Hit<Document>> hits = scroll.hits().hits();
             while (!hits.isEmpty()) {
-                processHits(writer, hits);
+                processHits(csvWriter, jsonWriter, hits);
                 scroll = indexService.scroll(scroll.scrollId(), timeout);
                 hits = scroll.hits().hits();
             }
@@ -138,8 +146,8 @@ public class IndexCommand {
             if (scroll != null && scroll.scrollId() != null) {
                 indexService.clearScroll(scroll.scrollId());
             }
-            if (writer != null) {
-                writer.close();
+            if (csvWriter != null) {
+                csvWriter.close();
             }
         }
     }
@@ -244,7 +252,29 @@ public class IndexCommand {
         }
     }
 
-    private void processHits(CSVWriter writer, List<Hit<Document>> hits) {
+    private void processHits(CSVWriter writer, PrintWriter jsonWriter, List<Hit<Document>> hits) {
+        if(writer != null) {
+            writeHitsIntoCsvFile(writer, hits);
+        } else if(jsonWriter != null) {
+            writeHitsIntoJsonFile(jsonWriter, hits);
+        } else{
+            printInConsole(hits);
+        }
+    }
+
+    private void writeHitsIntoJsonFile(PrintWriter jsonWriter, List<Hit<Document>> hits) {
+        if (jsonWriter != null) {
+            hits.forEach(hit -> {
+                try {
+                    jsonWriter.println(objectMapper.writeValueAsString(hit.source()) + ",");
+                } catch (JsonProcessingException e) {
+                    e.printStackTrace();
+                }
+            });
+        }
+    }
+
+    private void writeHitsIntoCsvFile(CSVWriter writer, List<Hit<Document>> hits) {
         if (writer != null) {
             writeDocuments(hits, writer);
         } else {
