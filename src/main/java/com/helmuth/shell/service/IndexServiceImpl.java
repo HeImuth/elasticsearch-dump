@@ -2,6 +2,9 @@ package com.helmuth.shell.service;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import co.elastic.clients.elasticsearch._types.Time;
+import co.elastic.clients.elasticsearch._types.query_dsl.Operator;
+import co.elastic.clients.elasticsearch._types.query_dsl.Query;
+import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders;
 import co.elastic.clients.elasticsearch.cat.indices.IndicesRecord;
 import co.elastic.clients.elasticsearch.core.*;
 import co.elastic.clients.elasticsearch.core.search.SourceFilter;
@@ -17,10 +20,14 @@ import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.util.*;
+import java.util.regex.Pattern;
 
 @Service
 public class IndexServiceImpl implements IndexService<Document> {
     private static final Logger log = LoggerFactory.getLogger(IndexServiceImpl.class);
+    private static final Pattern AND_PATTERN = Pattern.compile("\\band\\b", Pattern.CASE_INSENSITIVE);
+    private static final Pattern NOT_PATTERN = Pattern.compile("\\bnot\\b", Pattern.CASE_INSENSITIVE);
+    private static final Pattern OR_PATTERN = Pattern.compile("\\bor\\b", Pattern.CASE_INSENSITIVE);
     private final ElasticsearchClient client;
 
     public IndexServiceImpl(ElasticsearchClient client) {
@@ -79,7 +86,7 @@ public class IndexServiceImpl implements IndexService<Document> {
     }
 
     @Override
-    public void indexDocuments(String indexName ,Collection<Document> documents) throws IOException {
+    public void indexDocuments(String indexName, Collection<Document> documents) throws IOException {
         BulkRequest.Builder bulkRequest = new BulkRequest.Builder();
         for (Document document : documents) {
             bulkRequest.operations(op -> op.index(i -> i.index(indexName).document(document)));
@@ -106,6 +113,32 @@ public class IndexServiceImpl implements IndexService<Document> {
     }
 
     @Override
+    public List<Document> searchDocuments(String indexName, String searchQuery, int size, int page) throws IOException {
+        SearchRequest.Builder request = new SearchRequest.Builder()
+                .index(indexName)
+                .size(size)
+                .from(page * size);
+
+        if (!this.isNullOrEmpty(searchQuery)) {
+            Query query = QueryBuilders.queryString(qs -> qs
+                    .query(preprocessSearchQuery(searchQuery))
+                    .defaultOperator(Operator.And)
+                    .allowLeadingWildcard(true));
+            request.query(query);
+        }
+
+        SearchResponse<Document> search = client.search(request.build(), Document.class);
+        return search.hits().hits().stream().map(hit -> new Document(hit.id(), hit.source())).toList();
+    }
+
+    private String preprocessSearchQuery(String searchQuery) {
+        searchQuery = AND_PATTERN.matcher(searchQuery).replaceAll("AND");
+        searchQuery = OR_PATTERN.matcher(searchQuery).replaceAll("OR");
+        searchQuery = NOT_PATTERN.matcher(searchQuery).replaceAll("NOT");
+        return searchQuery;
+    }
+
+    @Override
     public SearchResponse<Document> scrollSearch(String indexName, int size, String timeout, List<String> includeFields, List<String> excludeFields) throws IOException {
         return client.search(req -> req.index(indexName)
                 .size(size)
@@ -117,6 +150,10 @@ public class IndexServiceImpl implements IndexService<Document> {
 
     private boolean isNullOrEmpty(Collection<?> collection) {
         return collection == null || collection.isEmpty();
+    }
+
+    private boolean isNullOrEmpty(String str) {
+        return str == null || str.isEmpty();
     }
 
     @Override

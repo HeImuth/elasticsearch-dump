@@ -22,6 +22,7 @@ public interface IndexService<T> {
     void indexDocument(String indexName, Map<String, Object> document);
     Optional<Document> getDocumentById(String indexName, String id) throws IOException;
     List<Document> getDocuments(String indexName, int size, int page) throws IOException;
+    List<Document> searchDocuments(String indexName, String query, int size, int page) throws IOException;
     SearchResponse<Document> scrollSearch(String indexName, int size, String timeout, List<String> includeFields, List<String> excludeFields) throws IOException;
     ScrollResponse<Document> scroll(String scrollId, String timeout) throws IOException;
     void clearScroll(String scrollId) throws IOException;

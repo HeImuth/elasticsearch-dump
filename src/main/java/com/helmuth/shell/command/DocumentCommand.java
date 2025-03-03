@@ -55,4 +55,14 @@ public class DocumentCommand {
             throw new RuntimeException(e);
         }
     }
+
+    @Command(command = "search-documents", description = "search documents in an index by page")
+    public void searchDocuments(String indexName, @Option(defaultValue = "") String query, @Option(defaultValue = "20") int size, @Option(defaultValue = "0") int page) {
+        try {
+            indexService.searchDocuments(indexName, query, size, page).forEach(System.out::println);
+        } catch (Exception e) {
+            System.err.println("Failed to search documents");
+            throw new RuntimeException(e);
+        }
+    }
 }
