@@ -9,9 +9,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.helmuth.shell.model.Document;
 import com.helmuth.shell.model.GenericDocument;
 import com.helmuth.shell.service.IndexService;
+import com.helmuth.shell.util.DocumentExporter;
 import com.opencsv.CSVReader;
 import com.opencsv.CSVReaderBuilder;
-import com.opencsv.CSVWriter;
 import com.opencsv.RFC4180Parser;
 import com.opencsv.exceptions.CsvValidationException;
 import org.springframework.shell.command.annotation.Command;
@@ -22,8 +22,6 @@ import java.util.*;
 
 @Command(group = "index", description = "Index operations")
 public class IndexCommand {
-    private static final String CSV_EXTENSION = ".csv";
-    private static final String JSON_EXTENSION = ".json";
     private static final ObjectMapper objectMapper = new ObjectMapper();
     private final IndexService<Document> indexService;
 
@@ -108,37 +106,29 @@ public class IndexCommand {
 
     @Command(command = "scroll", description = "Scroll through documents in an index", group = "index")
     public void scroll(String indexName, @Option(defaultValue = "100") int size, @Option(defaultValue = "10m") String timeout,
-                       @Option List<String> includeFields, @Option List<String> excludeFields,
-                       @Option String output, @Option(defaultValue = "false") Boolean outputHeader) throws IOException {
-        CSVWriter csvWriter = null;
-        PrintWriter jsonWriter = null;
+                      @Option List<String> includeFields, @Option List<String> excludeFields,
+                      @Option String output, @Option(defaultValue = "false") Boolean outputHeader) throws IOException {
+        DocumentExporter exporter = new DocumentExporter(output, outputHeader);
         ScrollResponse<Document> scroll = null;
-        String fileExtension = CSV_EXTENSION;
         try {
-            if (output != null && !output.isEmpty()) {
-                fileExtension = getFileExtension(output);
-                if (fileExtension.equals(JSON_EXTENSION)) {
-                    jsonWriter = new PrintWriter(new FileWriter(output));
-                    jsonWriter.print("["); // Start JSON array
-                } else {
-                    csvWriter = new CSVWriter(new FileWriter(output));
-                }
-            }
+            exporter.initialize();
             SearchResponse<Document> initScroll = indexService.scrollSearch(indexName, size, timeout, includeFields, excludeFields);
-            List<Hit<Document>> searchHits = initScroll.hits().hits();
-            if (outputHeader && fileExtension.equals(CSV_EXTENSION)) {
-                printHeader(csvWriter, searchHits);
-            }
-            processHits(csvWriter, jsonWriter, searchHits, false);
+            List<Document> documents = initScroll.hits().hits().stream()
+                    .map(Hit::source)
+                    .toList();
+            exporter.writeDocuments(documents, true);
 
             scroll = indexService.scroll(initScroll.scrollId(), timeout);
-            List<Hit<Document>> hits = scroll.hits().hits();
+            List<Document> hits = scroll.hits().hits().stream()
+                    .map(Hit::source)
+                    .toList();
             while (!hits.isEmpty()) {
-                processHits(csvWriter, jsonWriter, hits, true);
+                exporter.writeDocuments(hits, false);
                 scroll = indexService.scroll(scroll.scrollId(), timeout);
-                hits = scroll.hits().hits();
+                hits = scroll.hits().hits().stream()
+                    .map(Hit::source)
+                    .toList();
             }
-
         } catch (Exception e) {
             System.err.println("Failed to scroll through documents");
             throw new RuntimeException(e);
@@ -146,21 +136,13 @@ public class IndexCommand {
             if (scroll != null && scroll.scrollId() != null) {
                 indexService.clearScroll(scroll.scrollId());
             }
-            if (csvWriter != null) {
-                csvWriter.close();
-            }
-            if (jsonWriter != null) {
-                jsonWriter.print("]");
-                jsonWriter.close();
+            try {
+                exporter.close();
+            } catch (IOException e) {
+                System.err.println("Failed to close export writers");
+                e.printStackTrace();
             }
         }
-    }
-
-    private static String getFileExtension(String output) {
-        if (output == null || !output.contains(".")) {
-            return ".csv";
-        }
-        return output.substring(output.lastIndexOf(".")).toLowerCase();
     }
 
     @Command(command = "import", description = "Import documents into an index")
@@ -249,86 +231,6 @@ public class IndexCommand {
         }
 
         return documents;
-    }
-
-    private void printHeader(CSVWriter writer, List<Hit<Document>> searchHits) {
-        if (searchHits.isEmpty() || searchHits.getFirst() == null || searchHits.getFirst().source() == null) {
-            return;
-        }
-        if (writer != null) {
-            String[] headers = searchHits.getFirst().source().keySet().toArray(new String[0]);
-            writer.writeNext(headers);
-        } else {
-            System.out.println(searchHits.getFirst().source().keySet());
-        }
-    }
-
-    private void processHits(CSVWriter writer, PrintWriter jsonWriter, List<Hit<Document>> hits, boolean anyProcessedYet) {
-        if (writer != null) {
-            writeHitsIntoCsvFile(writer, hits);
-        } else if (jsonWriter != null) {
-            writeHitsIntoJsonFile(jsonWriter, hits, anyProcessedYet);
-        } else {
-            printInConsole(hits);
-        }
-    }
-
-    private void writeHitsIntoJsonFile(PrintWriter jsonWriter, List<Hit<Document>> hits, boolean anyProcessedYet) {
-        if (jsonWriter != null) {
-            for (int i = 0; i < hits.size(); i++) {
-                try {
-                    String json = objectMapper.writeValueAsString(hits.get(i).source());
-                    if (anyProcessedYet && i == 0) {
-                        jsonWriter.println(",");
-                    }
-                    if (i == (hits.size() - 1)) {
-                        jsonWriter.print(json);
-                    } else {
-                        jsonWriter.println(json + ",");
-                    }
-                } catch (JsonProcessingException e) {
-                    e.printStackTrace();
-                }
-            }
-        }
-    }
-
-    private void writeHitsIntoCsvFile(CSVWriter writer, List<Hit<Document>> hits) {
-        if (writer != null) {
-            writeDocuments(hits, writer);
-        } else {
-            printInConsole(hits);
-        }
-    }
-
-    private static void printInConsole(List<Hit<Document>> hits) {
-        hits.forEach(hit -> System.out.println(hit.source()));
-    }
-
-    private void writeDocuments(List<Hit<Document>> hits, CSVWriter writer) {
-        hits.forEach(hit -> {
-            Map<String, Object> source = hit.source();
-            if (source != null && !source.isEmpty()) {
-                String[] data = source.values().stream().map(this::printField).toArray(String[]::new);
-                writer.writeNext(data);
-            }
-        });
-    }
-
-    private String printField(Object field) {
-        if (field == null) {
-            return "";
-        }
-
-        if (field instanceof String) {
-            return field.toString();
-        } else {
-            try {
-                return objectMapper.writeValueAsString(field);
-            } catch (IOException e) {
-                return String.valueOf(field);
-            }
-        }
     }
 
 

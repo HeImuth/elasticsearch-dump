@@ -5,11 +5,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.helmuth.shell.model.Document;
 import com.helmuth.shell.model.GenericDocument;
 import com.helmuth.shell.service.IndexService;
+import com.helmuth.shell.util.DocumentExporter;
 import org.springframework.shell.command.annotation.Command;
 import org.springframework.shell.command.annotation.Option;
 
+import java.io.IOException;
 import java.util.HashMap;
-import java.util.Map;
+import java.util.List;
 
 @Command(group = "document", description = "Document operations")
 public class DocumentCommand {
@@ -47,22 +49,45 @@ public class DocumentCommand {
     }
 
     @Command(command = "list-documents", description = "List documents in an index by page")
-    public void listDocuments(String indexName, @Option(defaultValue = "20") int size, @Option(defaultValue = "0") int page) {
+    public void listDocuments(String indexName, @Option(defaultValue = "20") int size, @Option(defaultValue = "0") int page,
+                            @Option String output, @Option(defaultValue = "false") Boolean outputHeader) {
+        DocumentExporter exporter = new DocumentExporter(output, outputHeader);
         try {
-            indexService.getDocuments(indexName, size, page).forEach(System.out::println);
+            exporter.initialize();
+            List<Document> documents = indexService.getDocuments(indexName, size, page);
+            exporter.writeDocuments(documents, true);
         } catch (Exception e) {
             System.err.println("Failed to list documents");
             throw new RuntimeException(e);
+        } finally {
+            try {
+                exporter.close();
+            } catch (IOException e) {
+                System.err.println("Failed to close export writers");
+                e.printStackTrace();
+            }
         }
     }
 
     @Command(command = "search-documents", description = "search documents in an index by page")
-    public void searchDocuments(String indexName, @Option(defaultValue = "") String query, @Option(defaultValue = "20") int size, @Option(defaultValue = "0") int page) {
+    public void searchDocuments(String indexName, @Option(defaultValue = "") String query, @Option(defaultValue = "20") int size, 
+                              @Option(defaultValue = "0") int page, @Option String output, @Option(defaultValue = "false") Boolean outputHeader) {
+        DocumentExporter exporter = new DocumentExporter(output, outputHeader);
         try {
-            indexService.searchDocuments(indexName, query, size, page).forEach(System.out::println);
+            exporter.initialize();
+            List<Document> documents = indexService.searchDocuments(indexName, query, size, page);
+            exporter.writeDocuments(documents, true);
         } catch (Exception e) {
             System.err.println("Failed to search documents");
             throw new RuntimeException(e);
+        } finally {
+            try {
+                exporter.close();
+            } catch (IOException e) {
+                System.err.println("Failed to close export writers");
+                e.printStackTrace();
+            }
         }
     }
+
 }
