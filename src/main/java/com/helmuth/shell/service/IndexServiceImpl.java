@@ -106,18 +106,37 @@ public class IndexServiceImpl implements IndexService<Document> {
 
     @Override
     public List<Document> getDocuments(String indexName, int size, int page) throws IOException {
-        SearchResponse<Document> search = client.search(req -> req.index(indexName).size(size).from(page * size), Document.class);
-        System.out.println("took: " + search.took());
-        return search.hits().hits().stream().map(hit -> new Document(hit.id(), hit.source())).toList();
-
+        return getDocuments(indexName, size, page, Collections.emptyList(), Collections.emptyList());
     }
 
     @Override
-    public List<Document> searchDocuments(String indexName, String searchQuery, int size, int page) throws IOException {
+    public List<Document> getDocuments(String indexName, int size, int page, List<String> includeFields, List<String> excludeFields) throws IOException {
+        SearchResponse<Document> search = client.search(req -> req
+                .index(indexName)
+                .size(size)
+                .from(page * size)
+                .source(sc -> sc.filter(SourceFilter.of(sf -> sf
+                        .includes(isNullOrEmpty(includeFields) ? Collections.emptyList() : includeFields)
+                        .excludes(isNullOrEmpty(excludeFields) ? Collections.emptyList() : excludeFields)))),
+                Document.class);
+        System.out.println("took: " + search.took());
+        return search.hits().hits().stream().map(hit -> new Document(hit.id(), hit.source())).toList();
+    }
+
+    @Override
+    public List<Document> searchDocuments(String indexName, String query, int size, int page) throws IOException {
+        return searchDocuments(indexName, query, size, page, Collections.emptyList(), Collections.emptyList());
+    }
+
+    @Override
+    public List<Document> searchDocuments(String indexName, String searchQuery, int size, int page, List<String> includeFields, List<String> excludeFields) throws IOException {
         SearchRequest.Builder request = new SearchRequest.Builder()
                 .index(indexName)
                 .size(size)
-                .from(page * size);
+                .from(page * size)
+                .source(sc -> sc.filter(SourceFilter.of(sf -> sf
+                        .includes(isNullOrEmpty(includeFields) ? Collections.emptyList() : includeFields)
+                        .excludes(isNullOrEmpty(excludeFields) ? Collections.emptyList() : excludeFields))));
 
         if (!this.isNullOrEmpty(searchQuery)) {
             Query query = QueryBuilders.queryString(qs -> qs
@@ -189,4 +208,3 @@ public class IndexServiceImpl implements IndexService<Document> {
         throw new IllegalArgumentException("Document is not annotated with @IndexDocument");
     }
 }
-

@@ -10,6 +10,8 @@ import org.springframework.shell.command.annotation.Command;
 import org.springframework.shell.command.annotation.Option;
 
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 
@@ -49,12 +51,17 @@ public class DocumentCommand {
     }
 
     @Command(command = "list-documents", description = "List documents in an index by page")
-    public void listDocuments(String indexName, @Option(defaultValue = "20") int size, @Option(defaultValue = "0") int page,
-                            @Option String output, @Option(defaultValue = "false") Boolean outputHeader) {
+    public void listDocuments(String indexName, 
+                            @Option(defaultValue = "20") int size, 
+                            @Option(defaultValue = "0") int page,
+                            @Option String output, 
+                            @Option(defaultValue = "false") Boolean outputHeader,
+                            @Option List<String> includeFields,
+                            @Option List<String> excludeFields) {
         DocumentExporter exporter = new DocumentExporter(output, outputHeader);
         try {
             exporter.initialize();
-            List<Document> documents = indexService.getDocuments(indexName, size, page);
+            List<Document> documents = indexService.getDocuments(indexName, size, page, includeFields, excludeFields);
             exporter.writeDocuments(documents, true);
         } catch (Exception e) {
             System.err.println("Failed to list documents");
@@ -70,12 +77,18 @@ public class DocumentCommand {
     }
 
     @Command(command = "search-documents", description = "search documents in an index by page")
-    public void searchDocuments(String indexName, @Option(defaultValue = "") String query, @Option(defaultValue = "20") int size, 
-                              @Option(defaultValue = "0") int page, @Option String output, @Option(defaultValue = "false") Boolean outputHeader) {
+    public void searchDocuments(String indexName, 
+                              @Option(defaultValue = "") String query, 
+                              @Option(defaultValue = "20") int size, 
+                              @Option(defaultValue = "0") int page, 
+                              @Option String output, 
+                              @Option(defaultValue = "false") Boolean outputHeader,
+                              @Option List<String> includeFields,
+                              @Option List<String> excludeFields) {
         DocumentExporter exporter = new DocumentExporter(output, outputHeader);
         try {
             exporter.initialize();
-            List<Document> documents = indexService.searchDocuments(indexName, query, size, page);
+            List<Document> documents = indexService.searchDocuments(indexName, query, size, page, includeFields, excludeFields);
             exporter.writeDocuments(documents, true);
         } catch (Exception e) {
             System.err.println("Failed to search documents");
