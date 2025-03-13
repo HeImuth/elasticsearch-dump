@@ -7,9 +7,9 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.helmuth.shell.model.Document;
-import com.helmuth.shell.model.GenericDocument;
 import com.helmuth.shell.service.IndexService;
 import com.helmuth.shell.util.DocumentExporter;
+import com.helmuth.shell.util.UserConfirmationUtil;
 import com.opencsv.CSVReader;
 import com.opencsv.CSVReaderBuilder;
 import com.opencsv.RFC4180Parser;
@@ -17,7 +17,9 @@ import com.opencsv.exceptions.CsvValidationException;
 import org.springframework.shell.command.annotation.Command;
 import org.springframework.shell.command.annotation.Option;
 
-import java.io.*;
+import java.io.File;
+import java.io.FileReader;
+import java.io.IOException;
 import java.util.*;
 
 @Command(group = "index", description = "Index operations")
@@ -74,16 +76,11 @@ public class IndexCommand {
 
     @Command(command = "delete", description = "Delete an index", group = "index")
     public void deleteIndex(String indexName) {
-        Scanner scanner = new Scanner(System.in);
-        System.out.println("Are you sure you want to delete the index " + indexName + "? (yes/no)");
-        String response = scanner.nextLine();
-
-        if (!response.equalsIgnoreCase("yes")) {
-            System.out.println("Index deletion cancelled");
-            return;
-        }
-
         try {
+            if (!UserConfirmationUtil.confirmAction("delete the index " + indexName)) {
+                System.out.println("Index deletion cancelled");
+                return;
+            }
             indexService.deleteIndex(indexName);
             System.out.println("Index deleted: " + indexName);
         } catch (Exception e) {
@@ -102,7 +99,6 @@ public class IndexCommand {
             throw new RuntimeException(e);
         }
     }
-
 
     @Command(command = "scroll", description = "Scroll through documents in an index", group = "index")
     public void scroll(String indexName, @Option(defaultValue = "100") int size, @Option(defaultValue = "10m") String timeout,
@@ -186,10 +182,7 @@ public class IndexCommand {
 
     private List<Document> readCsv(File fileToImport) {
         System.out.println("The first row will be used as the header row");
-        System.out.print("Do you want to continue? [y/n]: ");
-        Scanner scanner = new Scanner(System.in);
-        String response = scanner.nextLine();
-        if (!response.equalsIgnoreCase("y") && !response.equalsIgnoreCase("yes")) {
+        if (!UserConfirmationUtil.confirm("Do you want to continue?")) {
             System.out.println("Import cancelled");
             return Collections.emptyList();
         }
@@ -232,6 +225,4 @@ public class IndexCommand {
 
         return documents;
     }
-
-
 }
