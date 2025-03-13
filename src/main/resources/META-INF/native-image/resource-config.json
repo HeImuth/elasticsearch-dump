@@ -1,0 +1,26 @@
+{
+  "resources": {
+    "includes": [
+      {
+        "pattern": "\\Qapplication.properties\\E"
+      },
+      {
+        "pattern": "\\QMETA-INF/services/.*\\E"
+      },
+      {
+        "pattern": ".*\\.json"
+      },
+      {
+        "pattern": "org/springframework/shell/standard/commands/.*"
+      },
+      {
+        "pattern": "co/elastic/clients/.*"
+      }
+    ]
+  },
+  "bundles": [
+    {
+      "name": "org.springframework.shell.jline.JLineShellAutoConfiguration$Default"
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+[
+  ["com.helmuth.shell.service.IndexService"],
+  ["com.helmuth.shell.service.IndexServiceImpl"],
+  ["co.elastic.clients.elasticsearch.ElasticsearchClient"],
+  ["co.elastic.clients.transport.ElasticsearchTransport"],
+  ["org.springframework.shell.command.CommandCatalog"],
+  ["org.springframework.shell.command.CommandExecution"],
+  ["org.springframework.shell.context.ShellContext"],
+  ["org.springframework.boot.SpringApplication"],
+  ["org.springframework.context.ApplicationContext"]
+]
