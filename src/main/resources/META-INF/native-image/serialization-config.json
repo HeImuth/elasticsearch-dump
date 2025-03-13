@@ -1,0 +1,27 @@
+[
+  {
+    "name": "com.helmuth.shell.model.Document",
+    "allPublicMethods": true,
+    "allDeclaredConstructors": true
+  },
+  {
+    "name": "java.util.HashMap",
+    "allPublicMethods": true,
+    "allDeclaredConstructors": true
+  },
+  {
+    "name": "com.fasterxml.jackson.databind.ObjectMapper",
+    "allPublicMethods": true,
+    "allDeclaredConstructors": true
+  },
+  {
+    "name": "co.elastic.clients.elasticsearch.core.SearchResponse",
+    "allPublicMethods": true,
+    "allDeclaredConstructors": true
+  },
+  {
+    "name": "co.elastic.clients.elasticsearch.core.search.Hit",
+    "allPublicMethods": true,
+    "allDeclaredConstructors": true
+  }
+]
