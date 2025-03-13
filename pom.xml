@@ -9,10 +9,10 @@
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
 	<groupId>com.helmuth</groupId>
-	<artifactId>shell</artifactId>
-	<version>0.0.1-SNAPSHOT</version>
-	<name>shell</name>
-	<description>Demo shell app</description>
+<artifactId>elasticsearch-dump-shell</artifactId>
+<version>0.1.0</version>
+<name>elasticsearch-dump-shell</name>
+<description>Command-line tool for exporting and manipulating Elasticsearch data</description>
 	<url/>
 	<licenses>
 		<license/>
