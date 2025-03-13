@@ -3,15 +3,12 @@ package com.helmuth.shell.command;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.helmuth.shell.model.Document;
-import com.helmuth.shell.model.GenericDocument;
 import com.helmuth.shell.service.IndexService;
 import com.helmuth.shell.util.DocumentExporter;
 import org.springframework.shell.command.annotation.Command;
 import org.springframework.shell.command.annotation.Option;
 
 import java.io.IOException;
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 

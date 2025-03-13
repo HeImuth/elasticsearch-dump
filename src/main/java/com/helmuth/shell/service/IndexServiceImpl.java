@@ -13,7 +13,6 @@ import co.elastic.clients.elasticsearch.indices.GetMappingResponse;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.helmuth.shell.model.Document;
-import com.helmuth.shell.model.IndexDocument;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -72,18 +71,6 @@ public class IndexServiceImpl implements IndexService<Document> {
         return client.count(req -> req.index(indexName)).count();
     }
 
-    @Override
-    public void indexDocument(Document document) {
-        try {
-            IndexResponse index = client.index(req -> req
-                    .index(getIndexName(document))
-                    .document(document));
-            System.out.println("Indexed document with ID: " + index.id());
-        } catch (Exception e) {
-            System.err.println("Failed to index document");
-            throw new RuntimeException(e);
-        }
-    }
 
     @Override
     public void indexDocuments(String indexName, Collection<Document> documents) throws IOException {
@@ -200,11 +187,4 @@ public class IndexServiceImpl implements IndexService<Document> {
     }
 
 
-    private String getIndexName(Document document) {
-        IndexDocument annotation = document.getClass().getAnnotation(IndexDocument.class);
-        if (annotation != null) {
-            return annotation.indexName();
-        }
-        throw new IllegalArgumentException("Document is not annotated with @IndexDocument");
-    }
 }
