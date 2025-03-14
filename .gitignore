@@ -34,3 +34,6 @@ build/
 
 ### shell logs ###
 shell.log*
+
+### Docker compose volumes ###
+elasticsearch_data/**
