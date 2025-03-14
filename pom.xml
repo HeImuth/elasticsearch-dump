@@ -10,7 +10,7 @@
 	</parent>
 	<groupId>com.helmuth</groupId>
 <artifactId>elasticsearch-dump-shell</artifactId>
-<version>0.1.0</version>
+<version>0.2.0-SNAPSHOT</version>
 <name>elasticsearch-dump-shell</name>
 <description>Command-line tool for exporting and manipulating Elasticsearch data</description>
 	<url/>
