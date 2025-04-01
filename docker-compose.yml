@@ -19,6 +19,17 @@ services:
         soft: -1
         hard: -1
 
+  shell:
+    build: .
+    environment:
+      - ELASTICSEARCH_HOST=elasticsearch:9200
+      - ELASTICSEARCH_USERNAME=elastic
+      - ELASTICSEARCH_PASSWORD=password
+    networks:
+      - elastic
+    depends_on:
+      - elasticsearch
+
 networks:
   elastic:
     driver: bridge
