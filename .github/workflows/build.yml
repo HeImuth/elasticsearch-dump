@@ -68,9 +68,12 @@ jobs:
           docker images
 
       - name: Push Docker image
-        if: github.event_name != 'pull_request'
         run: |
           REPO_LOWERCASE=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+          echo "Event type: ${{ github.event_name }}"
+          echo "Repository: $REPO_LOWERCASE"
+          echo "Full image name: ${{ env.REGISTRY }}/$REPO_LOWERCASE:latest"
           echo "Pushing Docker image to ${{ env.REGISTRY }}..."
           docker push ${{ env.REGISTRY }}/$REPO_LOWERCASE:latest
-          echo "Image pushed successfully"
+          echo "Image push command completed"
+          docker images
