@@ -27,7 +27,7 @@ jobs:
         with:
           java-version: '21'
           distribution: 'graalvm'
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          github-token: ${{ secrets.ACTION_TOKEN }}
           native-image-job-reports: 'true'
 
       - name: Make mvnw executable
@@ -44,7 +44,7 @@ jobs:
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          password: ${{ secrets.ACTION_TOKEN }}
 
       - name: Extract metadata for Docker
         id: meta
