@@ -61,14 +61,16 @@ jobs:
 
       - name: Build Docker image
         run: |
+          REPO_LOWERCASE=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
           echo "Building Docker image..."
-          docker build -t ${{ env.REGISTRY }}/${{ github.repository }}:latest .
+          docker build -t ${{ env.REGISTRY }}/$REPO_LOWERCASE:latest .
           echo "Image built successfully"
           docker images
 
       - name: Push Docker image
         if: github.event_name != 'pull_request'
         run: |
+          REPO_LOWERCASE=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
           echo "Pushing Docker image to ${{ env.REGISTRY }}..."
-          docker push ${{ env.REGISTRY }}/${{ github.repository }}:latest
+          docker push ${{ env.REGISTRY }}/$REPO_LOWERCASE:latest
           echo "Image pushed successfully"
