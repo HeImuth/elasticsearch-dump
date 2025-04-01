@@ -17,6 +17,7 @@ jobs:
     permissions:
       contents: read
       packages: write
+      actions: write
 
     steps:
       - name: Checkout repository
@@ -60,20 +61,27 @@ jobs:
             type=sha,format=long
 
       - name: Build Docker image
-        run: |
-          REPO_LOWERCASE=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
-          echo "Building Docker image..."
-          docker build -t ${{ env.REGISTRY }}/$REPO_LOWERCASE:latest .
-          echo "Image built successfully"
-          docker images
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          load: true
+          tags: ${{ steps.meta.outputs.tags }}
+
+      - name: Show Docker images
+        run: docker images
 
       - name: Push Docker image
-        run: |
-          REPO_LOWERCASE=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
-          echo "Event type: ${{ github.event_name }}"
-          echo "Repository: $REPO_LOWERCASE"
-          echo "Full image name: ${{ env.REGISTRY }}/$REPO_LOWERCASE:latest"
-          echo "Pushing Docker image to ${{ env.REGISTRY }}..."
-          docker push ${{ env.REGISTRY }}/$REPO_LOWERCASE:latest
-          echo "Image push command completed"
-          docker images
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+
+      - name: Make package public
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const pkg = '${{ env.REGISTRY }}/${{ github.repository }}'.toLowerCase();
+            await github.request('PATCH /user/packages/container/' + pkg.split('/')[2] + '/visibility', {
+              visibility: 'public'
+            });
