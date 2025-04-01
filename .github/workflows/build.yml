@@ -59,10 +59,16 @@ jobs:
             type=semver,pattern={{major}}.{{minor}}
             type=sha,format=long
 
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+      - name: Build Docker image
+        run: |
+          echo "Building Docker image..."
+          docker build -t ${{ env.REGISTRY }}/${{ github.repository }}:latest .
+          echo "Image built successfully"
+          docker images
+
+      - name: Push Docker image
+        if: github.event_name != 'pull_request'
+        run: |
+          echo "Pushing Docker image to ${{ env.REGISTRY }}..."
+          docker push ${{ env.REGISTRY }}/${{ github.repository }}:latest
+          echo "Image pushed successfully"
